@@ -1,0 +1,71 @@
+stages:
+  - format
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  IMAGE_NAME: "fastapi-app"
+  REGISTRY: "$CI_REGISTRY"
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+
+before_script:
+  - pip install black flake8 pytest
+
+# ✅ Format Check
+format:
+  stage: format
+  script:
+    - black --check src tests
+  only:
+    - merge_requests
+    - branches
+
+# ✅ Linting
+lint:
+  stage: lint
+  script:
+    - flake8 src tests
+  only:
+    - merge_requests
+    - branches
+
+# ✅ Run Unit Tests
+test:
+  stage: test
+  script:
+    - pytest tests --disable-warnings
+  only:
+    - merge_requests
+    - branches
+
+# 🏗️ Build Docker Image
+build:
+  stage: build
+  script:
+    - docker build -t $IMAGE_NAME .
+  only:
+    - main
+  except:
+    - tags
+
+# 📦 Push to GitLab Container Registry (optional)
+push_to_registry:
+  stage: build
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $REGISTRY
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+  only:
+    - main
+
+# 🚀 Deploy (Optional, modify for your setup)
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying FastAPI App..."
+    # Example for Kubernetes:
+    # - kubectl apply -f deployment.yaml
+  only:
+    - main
